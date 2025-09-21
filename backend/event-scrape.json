@@ -1,0 +1,4 @@
+{
+  "httpMethod": "POST",
+  "body": "{\"limit\":3,\"subreddits\":[\"news\",\"worldnews\"]}"
+}

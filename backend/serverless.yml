@@ -1,0 +1,512 @@
+service: smarteas-backend
+
+frameworkVersion: '3'
+
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: us-east-1
+  profile: ${self:custom.profiles.${self:provider.stage}, env:AWS_PROFILE}
+  environment:
+    DYNAMODB_TABLE_PREFIX: smarteas-dev-dev
+    DYNAMODB_TABLE: smarteas-dev-dev-events
+    DYNAMODB_EVENTS_TABLE: smarteas-dev-dev-events
+    DYNAMODB_ALERTS_TABLE: smarteas-dev-dev-alerts
+    BEDROCK_MODEL_ID: ${env:BEDROCK_MODEL_ID}
+    BEDROCK_REGION: ${env:BEDROCK_REGION}
+    AWS_BEARER_TOKEN_BEDROCK: ${env:AWS_BEARER_TOKEN_BEDROCK}
+    OPENWEATHER_API_KEY: ${env:OPENWEATHER_API_KEY}
+    GOOGLE_MAPS_API_KEY: ${env:GOOGLE_MAPS_API_KEY}
+    REDDIT_CLIENT_ID: ${env:REDDIT_CLIENT_ID}
+    REDDIT_CLIENT_SECRET: ${env:REDDIT_CLIENT_SECRET}
+    REDDIT_USER_AGENT: ${env:REDDIT_USER_AGENT}
+    REDDIT_REFRESH_TOKEN: ${env:REDDIT_REFRESH_TOKEN}
+    TWITTER_BEARER_TOKEN: ${env:TWITTER_BEARER_TOKEN}
+    TWITTER_API_KEY: ${env:TWITTER_API_KEY}
+    TWITTER_API_SECRET: ${env:TWITTER_API_SECRET}
+    NOAA_API_BASE_URL: ${env:NOAA_API_BASE_URL}
+    USGS_GEOMAG_API_BASE_URL: ${env:USGS_GEOMAG_API_BASE_URL}
+    NODE_ENV: ${env:NODE_ENV, 'production'}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - bedrock:InvokeModel
+        - bedrock:InvokeModelWithResponseStream
+      Resource: '*'
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:DescribeStream
+        - dynamodb:GetRecords
+        - dynamodb:GetShardIterator
+        - dynamodb:ListStreams
+      Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PREFIX}-*"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PREFIX}-*/index/*"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PREFIX}-*/stream/*"
+    - Effect: Allow
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource: 
+        - "arn:aws:s3:::${self:provider.environment.DYNAMODB_TABLE_PREFIX}-*/*"
+
+package:
+  individually: false
+  excludeDevDependencies: true
+  exclude:
+    - 'src/**'
+    - 'test/**'
+    - 'tests/**'
+    - '**/*.ts'
+    - '**/*.d.ts'
+    - '**/*.map'
+    - '**/test/**'
+    - '**/tests/**'
+    - '**/docs/**'
+    - '**/examples/**'
+  include:
+    - 'dist/**'
+    - '!**/test/**'
+    - '!**/tests/**'
+
+plugins:
+  - serverless-dotenv-plugin
+  - serverless-offline
+
+custom:
+  accountResolver:
+    dev: dev-account
+    staging: shared-account
+    prod: prod-account
+  stageConfig:
+    dev:
+      tableSuffix: dev
+      bucketSuffix: dev
+    staging:
+      tableSuffix: staging
+      bucketSuffix: staging
+    prod:
+      tableSuffix: prod
+      bucketSuffix: prod
+
+functions:
+  # Function 1: Enhanced Reddit Scraper
+  enhancedRedditScraper:
+    handler: dist/handlers/enhanced-reddit-scraper.handler
+    events:
+      - schedule: rate(5 minutes)
+      - http:
+          path: /scrape/reddit
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /scrape/reddit
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /scrape/reddit
+          method: options
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+    timeout: 300
+    
+  # Function 2: AI Disaster Analyzer  
+  aiDisasterAnalyzer:
+    handler: dist/handlers/ai-disaster-analyzer.handler
+    events:
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::GetAtt: [EventsTable, StreamArn]
+    timeout: 60
+
+  # Function 2b: AI Disaster Analyzer HTTP API
+  aiDisasterAnalyzerHTTP:
+    handler: dist/handlers/ai-disaster-analyzer.httpHandler
+    events:
+      - http:
+          path: /analyze/disaster
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /analyze/disaster
+          method: options
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+    timeout: 60
+
+  # Function 3: Weather Disaster Validator
+  weatherDisasterValidator:
+    handler: dist/handlers/weather-disaster-validator.handler
+    events:
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::GetAtt: [EventsTable, StreamArn]
+    timeout: 30
+
+  # Function 4: Heatmap Data Generator
+  heatmapDataGenerator:
+    handler: dist/handlers/heatmap-data-generator.handler
+    events:
+      - http:
+          path: /heatmap/data
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /heatmap/data
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /heatmap/data
+          method: options
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+    timeout: 60
+
+  # Function 5: Google Maps Integration
+  googleMapsIntegration:
+    handler: dist/handlers/google-maps-integration.handler
+    events:
+      - http:
+          path: /maps/visualization
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /maps/visualization
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+    timeout: 60
+
+  # Route Optimization
+  routeOptimizer:
+    handler: dist/handlers/route-optimizer.handler
+    events:
+      - http:
+          path: /routes/optimize
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+    timeout: 60
+
+  # Health Check
+  healthCheck:
+    handler: dist/handlers/health-check.handler
+    events:
+      - http:
+          path: /health
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /health
+          method: options
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+
+  # Dashboard Data Aggregator
+  dashboardDataAggregator:
+    handler: dist/handlers/dashboard-data-aggregator.handler
+    events:
+      - http:
+          path: /dashboard/data
+          method: get
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /dashboard/data
+          method: options
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+    timeout: 30
+
+  # Data Pipeline Processor
+  dataPipelineProcessor:
+    handler: dist/handlers/data-pipeline-processor.handler
+    events:
+      - http:
+          path: /pipeline/process
+          method: post
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - http:
+          path: /pipeline/process
+          method: options
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+            allowCredentials: false
+      - schedule: rate(30 minutes)  # Run pipeline every 30 minutes
+    timeout: 900  # 15 minutes for comprehensive processing
+
+  # API Endpoints
+  # getAlerts:
+  #   handler: src/handlers/api/get-alerts.handler
+  #   events:
+  #     - http:
+  #         path: /alerts
+  #         method: get
+  #         cors: true
+
+  # getEvents:
+  #   handler: src/handlers/api/get-events.handler
+  #   events:
+  #     - http:
+  #         path: /events
+  #         method: get
+  #         cors: true
+
+  # postFeedback:
+  #   handler: src/handlers/api/post-feedback.handler
+  #   events:
+  #     - http:
+  #         path: /feedback
+  #         method: post
+  #         cors: true
+
+  # WebSocket for Real-time Updates
+  # websocketConnect:
+  #   handler: src/handlers/websocket/connect.handler
+  #   events:
+  #     - websocket:
+  #         route: $connect
+
+  # websocketDisconnect:
+  #   handler: src/handlers/websocket/disconnect.handler
+  #   events:
+  #     - websocket:
+  #         route: $disconnect
+
+  # websocketMessage:
+  #   handler: src/handlers/websocket/message.handler
+  #   events:
+  #     - websocket:
+  #         route: $default
+
+resources:
+  Resources:
+    # DynamoDB Tables
+    EventsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-events
+        BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+          - AttributeName: type
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: TypeTimestampIndex
+            KeySchema:
+              - AttributeName: type
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+    AlertsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-alerts
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: severity
+            AttributeType: S
+          - AttributeName: timestamp
+            AttributeType: N
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: SeverityTimestampIndex
+            KeySchema:
+              - AttributeName: severity
+                KeyType: HASH
+              - AttributeName: timestamp
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+
+    ConnectionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-connections
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: connectionId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: connectionId
+            KeyType: HASH
+
+    # S3 Bucket for Media and Logs
+    MediaBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.DYNAMODB_TABLE_PREFIX}-media-${self:custom.stageConfig.${self:provider.stage}.bucketSuffix}
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ['*']
+              AllowedMethods: [GET, PUT, POST, DELETE]
+              AllowedOrigins: ['*']
