@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SmartEAS - Emergency Alert System",
-  description: "Real-time disaster monitoring and emergency response system powered by AI",
+  description: "Stay safe with real-time emergency alerts and disaster monitoring. AI-powered early warning system for natural disasters and emergencies.",
 };
 
 export default function RootLayout({

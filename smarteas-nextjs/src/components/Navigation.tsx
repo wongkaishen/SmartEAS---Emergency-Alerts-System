@@ -9,9 +9,10 @@ export default function Navigation() {
   const pathname = usePathname();
 
   const navItems = [
-    { href: '/', label: 'Dashboard', icon: <Home /> },
-    { href: '/map', label: 'Map View', icon: <Map /> },
-    { href: '/test', label: 'API Test', icon: <BugReport /> },
+    { href: '/', label: 'Home', icon: <Home /> },
+    { href: '/map', label: 'Emergency Map', icon: <Map /> },
+    { href: '/developer', label: 'Developer', icon: <BugReport /> },
+    { href: '/test', label: 'API Test', icon: <Warning /> },
   ];
 
   return (
