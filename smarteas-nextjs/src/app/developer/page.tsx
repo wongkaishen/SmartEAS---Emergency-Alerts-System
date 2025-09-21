@@ -34,6 +34,7 @@ export default function DeveloperDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [mounted, setMounted] = useState(false);
   const [dataSource, setDataSource] = useState<{
     isUsingRealData: boolean;
     backendStatus: 'connected' | 'disconnected' | 'error';
@@ -72,6 +73,7 @@ export default function DeveloperDashboard() {
   }, [api]);
 
   useEffect(() => {
+    setMounted(true);
     fetchDashboardData();
     const interval = setInterval(fetchDashboardData, 2 * 60 * 1000);
     return () => clearInterval(interval);
@@ -112,7 +114,7 @@ export default function DeveloperDashboard() {
         </Stack>
         
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Last updated: {lastRefresh.toLocaleString()}
+          Last updated: {mounted ? lastRefresh.toLocaleString() : 'Loading...'}
         </Typography>
       </Box>
 

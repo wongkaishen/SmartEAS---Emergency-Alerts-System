@@ -3,15 +3,17 @@ frontend:
   phases:
     preBuild:
       commands:
+        - cd smarteas-nextjs
         - npm ci
     build:
       commands:
+        - cd smarteas-nextjs
         - npm run build
   artifacts:
-    baseDirectory: .next
+    baseDirectory: smarteas-nextjs/.next
     files:
       - '**/*'
   cache:
     paths:
-      - node_modules/**/*
-      - .next/cache/**/*
+      - smarteas-nextjs/node_modules/**/*
+      - smarteas-nextjs/.next/cache/**/*

@@ -41,8 +41,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [mounted, setMounted] = useState(false);
 
   const api = smartEASAPI;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -80,6 +85,7 @@ export default function Home() {
   };
 
   const getTimeAgo = (timestamp: string | number) => {
+    if (!mounted) return 'Loading...';
     const date = new Date(timestamp);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
@@ -137,7 +143,7 @@ export default function Home() {
         </Stack>
         
         <Typography variant="body2" color="text.secondary">
-          Last updated: {lastRefresh.toLocaleString()}
+          Last updated: {mounted ? lastRefresh.toLocaleString() : 'Loading...'}
         </Typography>
       </Box>
 
