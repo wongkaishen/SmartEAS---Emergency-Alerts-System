@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Paper,
@@ -23,12 +23,10 @@ export default function MapView() {
   const [heatmapData, setHeatmapData] = useState<HeatmapData[]>([]);
   const [routeData, setRouteData] = useState<RouteOptimization | null>(null);
   const [timeRange, setTimeRange] = useState('24h');
-  const [loading, setLoading] = useState(true);
 
   // Load map data
-  const loadMapData = async () => {
+  const loadMapData = useCallback(async () => {
     try {
-      setLoading(true);
       const heatmap = await smartEASAPI.getHeatmapData({ 
         timeRange,
         minConfidence: 0.7 
@@ -36,10 +34,8 @@ export default function MapView() {
       setHeatmapData(heatmap);
     } catch (error) {
       console.error('Error loading map data:', error);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   // Optimize route example
   const optimizeExampleRoute = async () => {
@@ -57,7 +53,7 @@ export default function MapView() {
 
   useEffect(() => {
     loadMapData();
-  }, [timeRange]);
+  }, [loadMapData]);
 
   const getIntensityColor = (intensity: number) => {
     if (intensity > 0.8) return '#d32f2f';

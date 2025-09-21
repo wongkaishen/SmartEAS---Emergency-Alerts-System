@@ -19,10 +19,24 @@ import {
   Link,
   Paper
 } from '@mui/material';
-import { smartEASAPI } from '../../lib/api';
+import { smartEASAPI, RedditPost, ValidatedEvent } from '../../lib/api';
+
+interface TestResult {
+  success: boolean;
+  data?: {
+    posts?: RedditPost[];
+    events?: ValidatedEvent[];
+    heatmapData?: ValidatedEvent[];
+    redditPosts?: RedditPost[];
+    [key: string]: unknown;
+  };
+  error?: string;
+  timestamp: number;
+  responseTime: number;
+}
 
 // Component to display Reddit posts in a detailed format
-const RedditPostDisplay = ({ posts }: { posts: any[] }) => {
+const RedditPostDisplay = ({ posts }: { posts: RedditPost[] }) => {
   if (!posts || posts.length === 0) {
     return (
       <Alert severity="info">
@@ -85,7 +99,7 @@ const RedditPostDisplay = ({ posts }: { posts: any[] }) => {
 };
 
 // Component to display disaster events
-const DisasterEventsDisplay = ({ events }: { events: any[] }) => {
+const DisasterEventsDisplay = ({ events }: { events: ValidatedEvent[] }) => {
   if (!events || events.length === 0) {
     return <Alert severity="info">No disaster events found.</Alert>;
   }
@@ -128,30 +142,43 @@ const DisasterEventsDisplay = ({ events }: { events: any[] }) => {
 };
 
 export default function TestPage() {
-  const [results, setResults] = useState<any>({});
+  const [results, setResults] = useState<Record<string, TestResult>>({});
   const [loading, setLoading] = useState<string | null>(null);
   const [testInput, setTestInput] = useState('general disaster monitoring');
 
   const api = smartEASAPI;
 
-  const testEndpoint = async (name: string, testFn: () => Promise<any>) => {
+  const testEndpoint = async (name: string, testFn: () => Promise<unknown>) => {
+    const startTime = Date.now();
     try {
       setLoading(name);
       console.log(`🧪 Testing ${name}...`);
       
       const result = await testFn();
       
-      setResults((prev: any) => ({
+      setResults((prev: Record<string, TestResult>) => ({
         ...prev,
-        [name]: { success: true, data: result, error: null }
+        [name]: { 
+          success: true, 
+          data: result as TestResult['data'], 
+          error: undefined,
+          timestamp: Date.now(),
+          responseTime: Date.now() - startTime
+        }
       }));
       
       console.log(`✅ ${name} success:`, result);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setResults((prev: any) => ({
+      setResults((prev: Record<string, TestResult>) => ({
         ...prev,
-        [name]: { success: false, data: null, error: errorMessage }
+        [name]: { 
+          success: false, 
+          data: undefined, 
+          error: errorMessage,
+          timestamp: Date.now(),
+          responseTime: Date.now() - startTime
+        }
       }));
       
       console.error(`❌ ${name} failed:`, error);
@@ -342,12 +369,12 @@ export default function TestPage() {
                                 <Typography variant="h6" color="primary">
                                   🗺️ Validated Disaster Events: {result.data.heatmapData.length}
                                 </Typography>
-                                {result.data.heatmapData.slice(0, 3).map((event: any, idx: number) => (
+                                {result.data.heatmapData.slice(0, 3).map((event: ValidatedEvent, idx: number) => (
                                   <Paper key={idx} sx={{ p: 2, mb: 1 }}>
                                     <Typography variant="subtitle2">{event.type || 'Unknown'} - {event.severity || 'N/A'}</Typography>
                                     <Typography variant="caption">
-                                      Location: {event.lat?.toFixed(4)}, {event.lng?.toFixed(4)} | 
-                                      Confidence: {((event.intensity || event.confidence || 0) * 100).toFixed(1)}%
+                                      Location: {event.location.lat?.toFixed(4)}, {event.location.lng?.toFixed(4)} | 
+                                      Confidence: {(event.confidence * 100).toFixed(1)}%
                                     </Typography>
                                   </Paper>
                                 ))}

@@ -31,12 +31,11 @@ export default function DataSourceIndicator({
   lastUpdated
 }: DataSourceIndicatorProps) {
   const [expanded, setExpanded] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    // Auto-show details when there's an issue
+    // Auto-expand details when there's an issue
     if (backendStatus === 'error' || backendStatus === 'disconnected') {
-      setShowDetails(true);
+      setExpanded(true);
     }
   }, [backendStatus]);
 

@@ -7,7 +7,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://oeqsffqyzg
 const DEBUG_API = process.env.NEXT_PUBLIC_DEBUG_API === 'true';
 
 // Track backend availability
-let backendStatus = {
+const backendStatus = {
   isAvailable: true,
   lastChecked: 0,
   checkInterval: 60000 // Check every minute
@@ -177,6 +177,46 @@ export interface DashboardData {
   apiHealth: DashboardApiHealth;
 }
 
+export interface WeatherData {
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  windDirection: number;
+  conditions: string;
+  visibility: number;
+  pressure: number;
+  timestamp: number;
+}
+
+export interface WeatherAlert {
+  id: string;
+  title: string;
+  description: string;
+  severity: string;
+  startTime: number;
+  endTime: number;
+  area: string;
+  instructions?: string;
+}
+
+export interface MapLayer {
+  id: string;
+  name: string;
+  type: string;
+  visible: boolean;
+  data: unknown;
+}
+
+export interface MapMarker {
+  id: string;
+  lat: number;
+  lng: number;
+  title: string;
+  description: string;
+  type: string;
+  severity?: string;
+}
+
 class SmartEASAPI {
   private async fetchAPI(endpoint: string, options: RequestInit = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -291,9 +331,9 @@ class SmartEASAPI {
 
   // Weather validator endpoint
   async validateWeatherData(location: { lat: number; lng: number }): Promise<{
-    current: any;
-    forecast: any[];
-    alerts: any[];
+    current: WeatherData;
+    forecast: WeatherData[];
+    alerts: WeatherAlert[];
   }> {
     const response = await this.fetchAPI('/weather-validator', {
       method: 'POST',
@@ -363,7 +403,11 @@ class SmartEASAPI {
     lng: number;
     zoom?: number;
     timeRange?: string;
-  }): Promise<any> {
+  }): Promise<{
+    layers: MapLayer[];
+    markers: MapMarker[];
+    heatmapData: HeatmapData[];
+  }> {
     try {
       console.log('🔄 Fetching real maps visualization from backend...');
       const response = await this.fetchAPI('/maps/visualization', {
@@ -390,7 +434,7 @@ class SmartEASAPI {
         lastCheck: new Date().toISOString(),
         responseTime,
       };
-    } catch (error) {
+    } catch {
       return {
         status: 'down',
         lastCheck: new Date().toISOString(),

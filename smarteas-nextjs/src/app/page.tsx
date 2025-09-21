@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -18,7 +18,6 @@ import {
   CircularProgress,
   Avatar,
   Divider,
-  IconButton,
 } from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import { 
@@ -29,7 +28,6 @@ import {
   Security,
   Refresh,
   NotificationsActive,
-  Public,
   Map as MapIcon,
   Emergency,
   CheckCircle,
@@ -46,7 +44,7 @@ export default function Home() {
 
   const api = smartEASAPI;
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -55,20 +53,21 @@ export default function Home() {
       setData(dashboardResponse);
       setLastRefresh(new Date());
 
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch data:', err);
-      setError('Unable to connect to emergency services. Please try again later.');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage || 'Unable to connect to emergency services. Please try again later.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [api]);
 
   useEffect(() => {
     fetchDashboardData();
     // Auto-refresh every 5 minutes
     const interval = setInterval(fetchDashboardData, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchDashboardData]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity.toUpperCase()) {
